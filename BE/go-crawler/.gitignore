@@ -14,6 +14,7 @@
 !**/Makefile
 # Ignore specific files
 **/*.swp
+**/*.tmp
 **/*.zip
 **/*.tar
 **/*.bin
