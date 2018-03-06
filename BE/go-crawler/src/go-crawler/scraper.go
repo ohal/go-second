@@ -4,6 +4,7 @@ import (
 	//"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -43,7 +44,7 @@ func storePost(session *mgo.Session) func(int, *goquery.Selection) {
 
 		scrapedReview.Link, _ = item.Find("a").Attr("href")
 
-		log.Printf("Post #%d: %s - %s - %s - %s\n", index, scrapedReview.Post, scrapedReview.Link, scrapedReview.Date, scrapedReview.Author)
+		//log.Printf("Post #%d: %s - %s - %s - %s\n", index, scrapedReview.Post, scrapedReview.Link, scrapedReview.Date, scrapedReview.Author)
 
 		scrapedReview.ID = bson.NewObjectId()
 		scrapedReview.TimeStamp = time.Now().UTC()
@@ -54,15 +55,37 @@ func storePost(session *mgo.Session) func(int, *goquery.Selection) {
 		if errI != nil {
 			panic(errI)
 		}
-
-		var reviews []ReviewIndex
-		errF := c.Find(bson.M{}).All(&reviews)
-		if errF != nil {
-			panic(errF)
-		}
-		log.Printf("reviews: %v\n", reviews)
-
 	}
+}
+
+func printAllReviews(session *mgo.Session) {
+	c := session.DB(dbName).C(collectionName)
+
+	var reviews []ReviewIndex
+	errF := c.Find(bson.M{}).All(&reviews)
+	if errF != nil {
+		panic(errF)
+	}
+	log.Printf("reviews: %v\n", reviews)
+
+	phrases := make(chan string, len(reviews))
+	var postList sync.WaitGroup
+	postList.Add(len(reviews))
+	go func() {
+		for _, r := range reviews {
+			phrases <- r.Post
+		}
+		close(phrases)
+	}()
+
+	for p := range phrases {
+		go func() {
+			log.Printf("p: %v\n", p)
+			postList.Done()
+		}()
+	}
+
+	postList.Wait()
 }
 
 func postScrape(session *mgo.Session) {
@@ -72,4 +95,6 @@ func postScrape(session *mgo.Session) {
 	}
 
 	doc.Find(".contents").Each(storePost(session))
+
+	printAllReviews(session)
 }
