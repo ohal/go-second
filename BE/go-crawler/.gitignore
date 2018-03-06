@@ -1,0 +1,23 @@
+# Ignore all
+*
+# Unignore all with extensions
+!*.*
+# Unignore all dirs
+!*/
+# Ignore work dirs
+**/bin
+**/pkg
+**/apps
+**/.cache
+# Unignore builders
+!**/Dockerfile
+!**/Makefile
+# Ignore specific files
+**/*.swp
+**/*.zip
+**/*.tar
+**/*.bin
+**/*.img
+**/*.sublime*
+**/*.exe
+**/vendor.json
