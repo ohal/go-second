@@ -3,7 +3,9 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -26,7 +28,8 @@ func main() {
 
 	r := mux.NewRouter()
 	r.HandleFunc("/api/v1/reviews", AllReviewsEndPoint(session)).Methods("GET")
-	if err := http.ListenAndServe(":3000", r); err != nil {
+	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
+	if err := http.ListenAndServe(":3000", loggedRouter); err != nil {
 		log.Fatal(err)
 	}
 }
