@@ -14,25 +14,35 @@ import (
 
 // Review data
 type Review struct {
-	PostID int       `json:"post_id" bson:"post_id"`
 	Date   time.Time `json:"date" bson:"date"`
 	Author string    `json:"author" bson:"author"`
 	Link   string    `json:"link" bson:"link"`
 	Post   string    `json:"post" bson:"post"`
 }
 
-// ReviewIndex mongodb data struct
+// ReviewIndex mongodb data
 type ReviewIndex struct {
 	ID        bson.ObjectId `json:"id" bson:"_id"`
 	TimeStamp time.Time     `json:"time_stamp" bson:"_time_stamp"`
 	Review
 }
 
+func scrapePage(session *mgo.Session, url string) {
+	log.Printf("url: %v\n", url)
+
+	doc, err := goquery.NewDocument(url)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	doc.Find(".contents").Each(storePost(session))
+}
+
 func storePost(session *mgo.Session) func(int, *goquery.Selection) {
 	return func(index int, item *goquery.Selection) {
 		var scrapedReview ReviewIndex
 
-		scrapedReview.PostID = index
+		scrapedReview.ID = bson.NewObjectId()
 
 		block := item.Find("blockquote").Text()
 		scrapedReview.Post = strings.Join(strings.Split(strings.TrimSpace(block), "\n"), " ")
@@ -40,14 +50,11 @@ func storePost(session *mgo.Session) func(int, *goquery.Selection) {
 		scrapedReview.Author = item.Find("a").Text()
 
 		dateString, _ := item.Find("time").Attr("datetime")
-		scrapedReview.Date, _ = time.Parse(time.RFC3339, dateString)
+		datetime, _ := time.Parse(time.RFC3339, dateString)
+		scrapedReview.TimeStamp = datetime
+		scrapedReview.Date = datetime
 
 		scrapedReview.Link, _ = item.Find("a").Attr("href")
-
-		//log.Printf("Post #%d: %s - %s - %s - %s\n", index, scrapedReview.Post, scrapedReview.Link, scrapedReview.Date, scrapedReview.Author)
-
-		scrapedReview.ID = bson.NewObjectId()
-		scrapedReview.TimeStamp = time.Now().UTC()
 
 		c := session.DB(dbName).C(collectionName)
 
@@ -58,43 +65,29 @@ func storePost(session *mgo.Session) func(int, *goquery.Selection) {
 	}
 }
 
-func printAllReviews(session *mgo.Session) {
-	c := session.DB(dbName).C(collectionName)
-
-	var reviews []ReviewIndex
-	errF := c.Find(bson.M{}).All(&reviews)
-	if errF != nil {
-		panic(errF)
-	}
-	log.Printf("reviews: %v\n", reviews)
-
-	phrases := make(chan string, len(reviews))
-	var postList sync.WaitGroup
-	postList.Add(len(reviews))
-	go func() {
-		for _, r := range reviews {
-			phrases <- r.Post
+func scrapeSite(session *mgo.Session) {
+	currentURL := scrapeURL + firstURLSuffix
+	// scrape first page
+	scrapePage(session, currentURL)
+	// then check if we see next page
+	var pageList sync.WaitGroup
+	for { // scrape all pages until the end
+		doc, err := goquery.NewDocument(currentURL)
+		if err != nil {
+			log.Fatal(err)
 		}
-		close(phrases)
-	}()
-
-	for p := range phrases {
+		nextPageSuffix, _ := doc.Find(".next_page").Attr("href")
+		// break loop if there is no page to scrape
+		if nextPageSuffix == "" {
+			break
+		}
+		// if there is page to scrape then scrape it
+		pageList.Add(1)
+		currentURL = scrapeURL + nextPageSuffix
 		go func() {
-			log.Printf("p: %v\n", p)
-			postList.Done()
+			defer pageList.Done()
+			scrapePage(session, currentURL)
 		}()
 	}
-
-	postList.Wait()
-}
-
-func postScrape(session *mgo.Session) {
-	doc, err := goquery.NewDocument("https://apps.shopify.com/omnisend#reviews-heading")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	doc.Find(".contents").Each(storePost(session))
-
-	printAllReviews(session)
+	pageList.Wait()
 }
