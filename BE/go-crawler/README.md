@@ -13,6 +13,7 @@ NOTE: Go 1.9 have to be preinstalled before build.
 To build:
 
 ```
+$ cd ./go-second/BE/go-crawler
 $ make
 ```
 

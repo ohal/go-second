@@ -13,7 +13,7 @@ const (
 	isDrop         = true
 	dbName         = "test"
 	collectionName = "review"
-	dbURL          = "172.25.7.31:27017"
+	dbURL          = "127.0.0.1:27017"
 	scrapeURL      = "https://apps.shopify.com"
 	//firstURLSuffix = "/omnisend#reviews-heading" // start from the first page
 	firstURLSuffix = "/omnisend?page=130#reviews" // start from the 130 page
