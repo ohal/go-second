@@ -1,0 +1,52 @@
+<!--The content below is only a placeholder and can be replaced.-->
+<style>
+    .table {
+        width: 100%;
+    }
+
+    .table .td {
+        width: 50%;
+        vertical-align: top;
+    }
+
+    .title {
+        margin-bottom: 10px;
+    }
+
+    .button {
+        cursor: pointer;
+    }
+
+    .error {
+        width: 244px;
+        padding: 4px;
+        border: 1px solid #ebccd2;
+        color: #a94444;
+        background-color: #f2dede;
+        border-radius: 2px;
+    }
+</style>
+<div style="text-align:center">
+  <h1>
+    Omnisend Reviews
+  </h1>
+</div>
+<h2>Choose the date range to get report: </h2>
+<div class="normalmode">
+  <table class="table">
+      <tr>
+          <td class="td">
+            <div class="title">Date range</div>
+            <div>
+                <form #f="ngForm" (ngSubmit)="onSubmitNgModel()" novalidate>
+                    <my-date-range-picker name="ngModelDateRange" [options]="myDateRangePickerOptions" [(ngModel)]="model" required></my-date-range-picker>
+                    <div>
+                        <button class="button" type="submit">Submit</button>
+                        <p class="error" *ngIf="!f.valid">Date range is required!</p>
+                    </div>
+                </form>
+            </div>
+          </td>
+      </tr>
+  </table>
+</div>
