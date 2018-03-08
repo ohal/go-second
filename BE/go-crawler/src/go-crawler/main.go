@@ -1,106 +1,35 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"strings"
-	"time"
+	"net/http"
+	"os"
 
-	"github.com/PuerkitoBio/goquery"
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	"github.com/gorilla/handlers"
+	"github.com/gorilla/mux"
 )
-
-// Review data
-type Review struct {
-	PostID int       `json:"post_id" bson:"post_id"`
-	Date   time.Time `json:"date" bson:"date"`
-	Author string    `json:"author" bson:"author"`
-	Link   string    `json:"link" bson:"link"`
-	Post   string    `json:"post" bson:"post"`
-}
-
-// ReviewIndex mongodb data struct
-type ReviewIndex struct {
-	ID        bson.ObjectId `json:"id" bson:"_id"`
-	TimeStamp time.Time     `json:"time_stamp" bson:"_time_stamp"`
-	Review
-}
 
 const (
 	isDrop         = true
 	dbName         = "test"
 	collectionName = "review"
-	dbURL          = "172.25.7.31:27017"
+	dbURL          = "127.0.0.1:27017"
+	scrapeURL      = "https://apps.shopify.com"
+	//firstURLSuffix = "/omnisend#reviews-heading" // start from the first page
+	firstURLSuffix = "/omnisend?page=130#reviews" // start from the 130 page
 )
 
-func storePost(session *mgo.Session) func(int, *goquery.Selection) {
-	//return func(index int, item *goquery.Selection) {
-	return func(index int, item *goquery.Selection) {
-		//var scrapedReview review
-		var scrapedReview ReviewIndex
-		//title := item.Text()
-		scrapedReview.PostID = index
+func main() {
+	var mongo MgoSession
+	session := mongo.Init(dbURL)
 
-		block := item.Find("blockquote").Text()
-		scrapedReview.Post = strings.Join(strings.Split(strings.TrimSpace(block), "\n"), " ")
+	scrapeSite(session)
+	printAllReviews(session)
 
-		scrapedReview.Author = item.Find("a").Text()
-
-		dateString, _ := item.Find("time").Attr("datetime")
-		scrapedReview.Date, _ = time.Parse(time.RFC3339, dateString)
-
-		scrapedReview.Link, _ = item.Find("a").Attr("href")
-
-		fmt.Printf("Post #%d: %s - %s - %s - %s\n", index, scrapedReview.Post, scrapedReview.Link, scrapedReview.Date, scrapedReview.Author)
-
-		scrapedReview.ID = bson.NewObjectId()
-		scrapedReview.TimeStamp = time.Now().UTC()
-
-		c := session.DB(dbName).C(collectionName)
-
-		errI := c.Insert(&scrapedReview)
-		if errI != nil {
-			panic(errI)
-		}
-
-		var reviews []ReviewIndex
-		errF := c.Find(bson.M{}).All(&reviews)
-		if errF != nil {
-			panic(errF)
-		}
-		fmt.Printf("reviews: %v\n", reviews)
-
-	}
-}
-
-func postScrape(session *mgo.Session) {
-	doc, err := goquery.NewDocument("https://apps.shopify.com/omnisend#reviews-heading")
-	if err != nil {
+	r := mux.NewRouter()
+	r.HandleFunc("/api/v1/reviews", AllReviewsEndPoint(session)).Methods("GET")
+	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
+	if err := http.ListenAndServe(":3000", loggedRouter); err != nil {
 		log.Fatal(err)
 	}
-
-	doc.Find(".contents").Each(storePost(session))
-}
-
-func main() {
-	// connect to mongo
-	session, err := mgo.Dial(dbURL)
-	if err != nil {
-		panic(err)
-	}
-
-	defer session.Close()
-
-	session.SetMode(mgo.Monotonic, true)
-	defer session.Close()
-
-	if isDrop {
-		err = session.DB(dbName).DropDatabase()
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	postScrape(session)
 }
