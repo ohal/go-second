@@ -1,7 +1,7 @@
-import { CommonModule } from "@angular/common";
+import { CommonModule } from '@angular/common';
 import { BrowserModule } from '@angular/platform-browser';
 import { NgModule } from '@angular/core';
-import { FormsModule } from "@angular/forms";
+import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
 import { AppComponent } from './app.component';
 import { MyDateRangePickerModule } from 'mydaterangepicker';
@@ -13,8 +13,8 @@ import { ReportService } from './report.service';
     AppComponent
   ],
   imports: [
-  	CommonModule,
-  	FormsModule,
+    CommonModule,
+    FormsModule,
     BrowserModule,
     MyDateRangePickerModule,
     HttpClientModule
