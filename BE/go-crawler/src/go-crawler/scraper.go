@@ -45,7 +45,9 @@ func storePost(session *mgo.Session) func(int, *goquery.Selection) {
 		scrapedReview.ID = bson.NewObjectId()
 
 		block := item.Find("blockquote").Text()
-		scrapedReview.Post = strings.Join(strings.Split(strings.TrimSpace(block), "\n"), " ")
+		scrapedReview.Post = strings.Join(
+			strings.Split(
+				strings.TrimSpace(block), "\n"), " ")
 
 		scrapedReview.Author = item.Find("a").Text()
 
