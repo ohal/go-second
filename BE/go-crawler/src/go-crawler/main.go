@@ -49,9 +49,14 @@ func main() {
 	)
 
 	r := mux.NewRouter()
+
 	r.Use(cors)
-	r.HandleFunc("/api/v1/reviews", AllReviewsEndPoint(session)).Methods("GET")
+
+	r.HandleFunc("/api/v1/reviews", AllReviewsEndPoint(session)).Methods(http.MethodGet)
+	r.HandleFunc("/api/v1/range", RangeReviewsEndPoint(session)).Methods(http.MethodPost)
+
 	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
+
 	if err := http.ListenAndServe(":3000", loggedRouter); err != nil {
 		log.Fatal(err)
 	}
