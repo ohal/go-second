@@ -1,4 +1,7 @@
 import { Component } from '@angular/core';
+import { IMyDrpOptions } from 'mydaterangepicker';
+import { Observable } from 'rxjs/Rx';
+import { ReportService } from './report.service';
 
 @Component({
   selector: 'app-root',
@@ -6,23 +9,39 @@ import { Component } from '@angular/core';
   styleUrls: ['./app.component.css']
 })
 export class AppComponent {
-  title = 'app';
+  //title = 'app';
+
+  public reviews;
+  //: Review[];
+
+  constructor(private _reportService: ReportService) {}
+
+  myDateRangePickerOptions: IMyDrpOptions = {
+      dateFormat: 'dd.mm.yyyy',
+  };
+  private model: any = {beginDate: {year: 2018, month: 10, day: 9},
+                        endDate: {year: 2018, month: 10, day: 19}};
+
+  ngOnInit() {
+    //this.getReviews();
+  }
+
+  getReviews() {
+    this._reportService.getReviews().subscribe(
+      data => {
+        this.reviews = data;
+        console.log(this.reviews);
+      },
+      err => console.error(err),
+      () => console.log('done loading reviews')
+    );
+  }
 }
 
-import {IMyDrpOptions} from 'mydaterangepicker';
-// other imports here...
-
-export class MyTestApp {
-
-    myDateRangePickerOptions: IMyDrpOptions = {
-        // other options...
-        dateFormat: 'dd.mm.yyyy',
-    };
-
-    // For example initialize to specific date (09.10.2018 - 19.10.2018). It is also possible
-    // to set initial date range value using the selDateRange attribute.
-    private model: any = {beginDate: {year: 2018, month: 10, day: 9},
-                             endDate: {year: 2018, month: 10, day: 19}};
-
-    constructor() { }
-}
+interface Review {
+   id: string;
+   time_stamp: string;
+   author: string;
+   date: string;
+   post: string;
+   link: string;}
