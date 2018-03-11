@@ -1,62 +1,13 @@
 <!--The content below is only a placeholder and can be replaced.-->
-<style>
-.table {
-  width: 100%;
-}
-
-.table .td {
-  width: 50%;
-  vertical-align: top;
-}
-
-.title {
-  margin-bottom: 10px;
-}
-
-.button {
-  cursor: pointer;
-}
-
-.error {
-  width: 244px;
-  padding: 4px;
-  border: 1px solid #ebccd2;
-  color: #a94444;
-  background-color: #f2dede;
-  border-radius: 2px;
-}
-
-</style>
 <div style="text-align:center">
   <h1>
     Omnisend Reviews
   </h1>
 </div>
-<h2>Get list of five most common three-word phrases by date range: </h2>
-<div class="normalmode">
-  <table class="table">
-    <tr>
-      <td class="td">
-        <div class="title">Choose date range to get report: </div>
-        <div>
-          <form #f="ngForm" (ngSubmit)="onSubmitNgModelShingle()" novalidate>
-            <my-date-range-picker name="ngModelDateRangeShingle" [options]="myDateRangePickerOptions" [(ngModel)]="model" required></my-date-range-picker>
-            <div>
-              <button class="button" type="submit">Get list of five most common three-word phrases by date range</button>
-              <p class="error" *ngIf="!f.valid">Date range is required!</p>
-            </div>
-          </form>
-        </div>
-      </td>
-    </tr>
-  </table>
-</div>
-<h2>Top shingles: </h2>
-<td class="td">
-  <div class="title">View: </div>
-  <ul>
-    <li *ngFor="let review of reviews">
-      freq: {{review.freq}}, shingle: {{review.shingle}}
-    </li>
-  </ul>
-</td>
+<h2>Here are links to get reports: </h2>
+<ul>
+  <li><a routerLink="">Shingles by date range</a></li>
+  <li><a routerLink="list">List of all revews</a></li>
+  <li><a routerLink="reviews">Reviews by date range</a></li>
+</ul>
+<router-outlet></router-outlet>
