@@ -3,10 +3,9 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"sync"
 	"time"
 
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
 	"net/http"
 )
 
@@ -57,17 +56,9 @@ func respondWithJSON(w http.ResponseWriter, code int, payload interface{}) {
 }
 
 // AllReviewsEndPoint respond with list of reviews
-func AllReviewsEndPoint(session *mgo.Session) http.HandlerFunc {
+func AllReviewsEndPoint(mongo *MgoSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: move to model methods
-		c := session.DB(dbName).C(collectionName)
-
-		var reviews []ReviewIndex
-		err := c.Find(bson.M{}).All(&reviews)
-		if err != nil {
-			panic(err)
-		}
-
+		reviews, err := mongo.FindAll()
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 			return
@@ -77,7 +68,7 @@ func AllReviewsEndPoint(session *mgo.Session) http.HandlerFunc {
 }
 
 // RangeReviewsEndPoint get range and respond with list of reviews in range
-func RangeReviewsEndPoint(session *mgo.Session) http.HandlerFunc {
+func RangeReviewsEndPoint(mongo *MgoSession) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		var dates dateRangePost
@@ -88,37 +79,113 @@ func RangeReviewsEndPoint(session *mgo.Session) http.HandlerFunc {
 			return
 		}
 
-		beginDate := time.Date(
-			dates.BeginDate.Year,
-			dates.BeginDate.Month,
-			dates.BeginDate.Day, 0, 0, 0, 0, time.UTC)
-		endDate := time.Date(
-			dates.EndDate.Year,
-			dates.EndDate.Month,
-			dates.EndDate.Day, 0, 0, 0, 0, time.UTC)
-
+		beginDate, endDate := getRange(dates)
 		log.Printf("range is from: %s to: %s", beginDate, endDate)
 
-		// TODO: move to model methods
-		c := session.DB(dbName).C(collectionName)
-
-		var reviews []ReviewIndex
-		err := c.Find(
-			bson.M{
-				"_time_stamp": bson.M{
-					"$gt": beginDate,
-					"$lt": endDate,
-				},
-			}).All(&reviews)
-
-		if err != nil {
-			panic(err)
-		}
-
+		reviews, err := mongo.FindRange(beginDate, endDate)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, err.Error())
 			return
 		}
 		respondWithJSON(w, http.StatusOK, reviews)
 	}
+}
+
+// ShingleReviewsEndPoint get range and respond with list of reviews in range
+func ShingleReviewsEndPoint(mongo *MgoSession) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+
+		var dates dateRangePost
+		if err := json.NewDecoder(r.Body).Decode(&dates); err != nil {
+			respondWithError(w, http.StatusBadRequest, "bad request")
+			log.Printf("bad request, error: %s,", err)
+
+			return
+		}
+
+		beginDate, endDate := getRange(dates)
+
+		log.Printf("range is from: %s to: %s", beginDate, endDate)
+
+		start := time.Now().UTC()
+
+		reviews, err := mongo.FindRange(beginDate, endDate)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, err.Error())
+			log.Printf("failed to get data from DB, error: %s,", err.Error())
+			return
+		}
+		timeFetch := time.Since(start)
+		start = time.Now().UTC()
+		if len(reviews) == 0 {
+			respondWithJSON(w, http.StatusOK, []StrShingleFreq{})
+			log.Println("zero size list")
+			return
+		}
+
+		// make chan of strings of shingles
+		shingles := make(chan string)
+		var postList sync.WaitGroup
+		postList.Add(len(reviews))
+		for i := range reviews {
+			go func(review *ReviewIndex, i int) {
+				defer postList.Done()
+				post := ReviewPost{i, review.Post}
+				sList := getShinglesList(post)
+				for _, s := range sList {
+					shingles <- s
+				}
+			}(&reviews[i], i)
+		}
+		// push shingles to list
+		ls := make([]string, 0)
+		go func() {
+			for shingle := range shingles {
+				ls = append(ls, shingle)
+			}
+		}()
+		postList.Wait()
+		timeList := time.Since(start)
+		start = time.Now().UTC()
+
+		// sort shingles by frequency
+		sortedByFreq := sortPhrasesByFreq(ls)
+		timeSort := time.Since(start)
+		start = time.Now().UTC()
+
+		// get top of list
+		topShingles := make([]StrShingleFreq, topList)
+		tail := len(sortedByFreq) - 1
+		if tail < 0 {
+			respondWithJSON(w, http.StatusOK, []StrShingleFreq{})
+			log.Println("zero size list")
+			return
+		}
+		for ix := 0; ix < topList; ix++ {
+			topShingles[ix] = sortedByFreq[tail-ix]
+			log.Printf("%v\n", topShingles[ix].String())
+		}
+		timePrint := time.Since(start)
+
+		log.Printf("length of list of shingles: %d", len(sortedByFreq))
+		log.Printf("done fetching data from mgo: %v", timeFetch)
+		log.Printf("done making shingles list: %v", timeList)
+		log.Printf("done sorting shingles list: %v", timeSort)
+		log.Printf("done printing sorted list: %v", timePrint)
+
+		respondWithJSON(w, http.StatusOK, topShingles)
+	}
+}
+
+func getRange(dates dateRangePost) (time.Time, time.Time) {
+	beginDate := time.Date(
+		dates.BeginDate.Year,
+		dates.BeginDate.Month,
+		dates.BeginDate.Day, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(
+		dates.EndDate.Year,
+		dates.EndDate.Month,
+		dates.EndDate.Day, 0, 0, 0, 0, time.UTC)
+
+	return beginDate, endDate
 }
