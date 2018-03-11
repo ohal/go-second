@@ -20,4 +20,9 @@ export class ReportService {
         return this.http.post('http://localhost:3000/api/v1/range', body);
     }
 
+    postShingle(range) {
+        const body = JSON.stringify(range);
+        return this.http.post('http://localhost:3000/api/v1/shingle', body);
+    }
+
 }

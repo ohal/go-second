@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"gopkg.in/mgo.v2"
 	"gopkg.in/mgo.v2/bson"
 )
 
@@ -27,7 +26,7 @@ type ReviewIndex struct {
 	Review
 }
 
-func scrapePage(session *mgo.Session, url string) {
+func scrapePage(mongo *MgoSession, url string) {
 	log.Printf("url: %v\n", url)
 
 	doc, err := goquery.NewDocument(url)
@@ -35,10 +34,10 @@ func scrapePage(session *mgo.Session, url string) {
 		log.Fatal(err)
 	}
 
-	doc.Find(".contents").Each(storePost(session))
+	doc.Find(".contents").Each(storePost(mongo))
 }
 
-func storePost(session *mgo.Session) func(int, *goquery.Selection) {
+func storePost(mongo *MgoSession) func(int, *goquery.Selection) {
 	return func(index int, item *goquery.Selection) {
 		var scrapedReview ReviewIndex
 
@@ -52,25 +51,26 @@ func storePost(session *mgo.Session) func(int, *goquery.Selection) {
 		scrapedReview.Author = item.Find("a").Text()
 
 		dateString, _ := item.Find("time").Attr("datetime")
-		datetime, _ := time.Parse(time.RFC3339, dateString)
+		datetime, err := time.Parse(time.RFC3339, dateString)
+		if err != nil {
+			log.Fatal(err)
+		}
 		scrapedReview.TimeStamp = datetime
 		scrapedReview.Date = datetime
 
 		scrapedReview.Link, _ = item.Find("a").Attr("href")
 
-		c := session.DB(dbName).C(collectionName)
-
-		errI := c.Insert(&scrapedReview)
+		errI := mongo.Insert(&scrapedReview)
 		if errI != nil {
 			panic(errI)
 		}
 	}
 }
 
-func scrapeSite(session *mgo.Session) {
+func scrapeSite(mongo *MgoSession) {
 	currentURL := scrapeURL + firstURLSuffix
 	// scrape first page
-	scrapePage(session, currentURL)
+	scrapePage(mongo, currentURL)
 	// then check if we see next page
 	var pageList sync.WaitGroup
 	for { // scrape all pages until the end
@@ -83,12 +83,12 @@ func scrapeSite(session *mgo.Session) {
 		if nextPageSuffix == "" {
 			break
 		}
-		// if there is page to scrape then scrape it
+		// if there is a page to scrape then scrape it
 		pageList.Add(1)
 		currentURL = scrapeURL + nextPageSuffix
 		go func() {
 			defer pageList.Done()
-			scrapePage(session, currentURL)
+			scrapePage(mongo, currentURL)
 		}()
 	}
 	pageList.Wait()

@@ -28,7 +28,11 @@ export class AppComponent {
     console.log(event);
   }
 
-  onSubmitNgModel(): void {
+  // ngOnInit() {
+    // this.getReviews();
+  // }
+
+  onSubmitNgModelRange(): void {
     this._reportService.postRange(this.model).subscribe(
       data => {
         this.reviews = data;
@@ -39,9 +43,16 @@ export class AppComponent {
     );
   }
 
-  // ngOnInit() {
-    // this.getReviews();
-  // }
+  onSubmitNgModelShingle(): void {
+    this._reportService.postShingle(this.model).subscribe(
+      data => {
+        this.reviews = data;
+        console.log(this.reviews);
+      },
+      err => console.error(err),
+      () => console.log('done loading top shingles')
+    );
+  }
 
   getReviews() {
     this._reportService.getReviews().subscribe(
