@@ -1,0 +1,28 @@
+<h2>Get list of reviews by date range: </h2>
+<div class="normalmode">
+  <table class="table">
+    <tr>
+      <td class="td">
+        <div class="title">Choose date range to get report: </div>
+        <div>
+          <form #f="ngForm" (ngSubmit)="onSubmitNgModelRange()" novalidate>
+            <my-date-range-picker name="ngModelDateRange" [options]="myDateRangePickerOptions" [(ngModel)]="model" required></my-date-range-picker>
+            <div>
+              <button class="button" type="submit">Get list of reviews by date range</button>
+              <p class="error" *ngIf="!f.valid">Date range is required!</p>
+            </div>
+          </form>
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>
+<h2>Reviews: </h2>
+<td class="td">
+  <div class="title">View: </div>
+  <ul>
+    <li *ngFor="let review of reviews">
+      Id: {{review.id}}, Author: {{review.author}}, Link: {{review.link}}, Post: {{review.post}}
+    </li>
+  </ul>
+</td>

@@ -1,0 +1,13 @@
+<h2>Get report of all reviews: </h2>
+<div>
+  <button (click)="getReviews()">All Reviews</button>
+</div>
+<h2>Report: </h2>
+<td class="td">
+  <div class="title">View: </div>
+  <ul>
+    <li *ngFor="let review of reviews">
+      Id: {{review.id}}, Author: {{review.author}}, Link: {{review.link}}, Post: {{review.post}}
+    </li>
+  </ul>
+</td>
